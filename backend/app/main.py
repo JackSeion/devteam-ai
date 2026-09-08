@@ -1,15 +1,14 @@
+
+from fastapi import FastAPI, HTTPException
 from uuid import UUID
+from backend.app.api import CreateTaskRequest, TaskResponse
 
-from fastapi import FastAPI , HTTPException
-from pydantic import BaseModel
+from backend.app.application.task_service import TaskService
+from backend.app.infrastructure.repositories.task_repository import TaskRepository
+from backend.app.infrastructure.database import SessionLocal
 
-from backend.app.domain.task import Task
 app = FastAPI()
 
-tasks: dict[UUID,Task] = {}
-
-class TaskRecived(BaseModel):
-    description: str
 
 @app.get("/")
 def root():
@@ -17,25 +16,50 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "healthy"}
 
-@app.post("/task")
-def create_task(task: TaskRecived):
-    new_task = Task(description=task.description)
-    tasks[new_task.id] = new_task
-    return {
-        "id": str(new_task.id),
-        "description": new_task.description,
-        "status": new_task.status.value
-    }
-
-@app.get("/task/{task_id}")
+@app.post("/tasks", response_model=TaskResponse)
+def create_task(request: CreateTaskRequest):
+    with SessionLocal() as session:
+        repository = TaskRepository(session)
+        service = TaskService(repository)
+        task = service.create_task(request.description)
+        return TaskResponse(
+            id=task.id,
+            description=task.description,
+            status=task.status
+        )
+    
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
 def get_task(task_id: UUID):
-    task = tasks.get(task_id)
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return {
-        "id": str(task.id),
-        "description": task.description,
-        "status": task.status.value
-    }
+    with SessionLocal() as session:
+        repository = TaskRepository(session)
+        service = TaskService(repository)
+
+        task = service.get_task(task_id)
+
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        return TaskResponse(
+            id=task.id,
+            description=task.description,
+            status=task.status,
+        )
+
+@app.get("/tasks", response_model=list[TaskResponse])
+def list_tasks():
+    with SessionLocal() as session:
+        repository = TaskRepository(session)
+        service = TaskService(repository)
+
+        tasks = service.list_tasks()
+
+        return [
+            TaskResponse(
+                id=task.id,
+                description=task.description,
+                status=task.status,
+            )
+            for task in tasks
+        ]
