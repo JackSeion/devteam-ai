@@ -1,5 +1,6 @@
 from enum import Enum
 from uuid import UUID, uuid4
+from datetime import datetime, timezone
 
 class TaskStatus(str, Enum):
     CREATED="CREATED" 
@@ -14,3 +15,4 @@ class Task:
         self.id: UUID = uuid4()
         self.description = description
         self.status = TaskStatus.CREATED
+        self.created_at: datetime = datetime.now(timezone.utc)
