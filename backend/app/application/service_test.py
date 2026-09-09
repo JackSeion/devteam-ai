@@ -1,11 +1,14 @@
 from backend.app.application.task_service import TaskService
 from backend.app.infrastructure.database import SessionLocal
 from backend.app.infrastructure.repositories.task_repository import TaskRepository
+from backend.app.infrastructure.repositories.task_run_repository import TaskRunRepository
 
 
 with SessionLocal() as session:
     repository = TaskRepository(session)
-    service = TaskService(repository)
+    task_run_repository = TaskRunRepository(session)
+
+    service = TaskService(repository, task_run_repository)
 
     task = service.create_task("Test task service")
 
@@ -20,4 +23,42 @@ with SessionLocal() as session:
 
     tasks = service.list_tasks()
 
-    print("Total tasks:", len(tasks))
+    task_run = service.start_task_run(task.id)
+
+    print("TaskRun:", task_run.id)
+    print("TaskRun task:", task_run.task_id)
+    print("TaskRun attempt:", task_run.attempt)
+    print("TaskRun status:", task_run.status) 
+    completed_run = service.complete_task_run(task_run.id)
+
+    print("Completed status:", completed_run.status)
+    print("Finished at:", completed_run.finished_at)
+
+    retry_run = service.start_task_run(task.id)
+
+    print("Retry TaskRun:", retry_run.id)
+    print("Retry attempt:", retry_run.attempt)
+    print("Retry status:", retry_run.status)
+
+    failed_run = service.fail_task_run(
+        retry_run.id,
+        "Test failure"
+    )
+
+    print("Failed status:", failed_run.status)
+    print("Error:", failed_run.error)
+    print("Finished at:", failed_run.finished_at)
+
+    runs = task_run_repository.list_by_task(task.id)
+
+    print("Total runs:", len(runs))
+
+    for run in runs:
+        print(
+            "Run:",
+            run.attempt,
+            "| Status:",
+            run.status,
+            "| Error:",
+            run.error,
+        )
