@@ -55,6 +55,16 @@ class TaskService:
         self.task_queue.enqueue(job)
         return task_run
 
+    def execute_task_run(self, run_id: UUID) -> TaskRun:
+        task_run = self.task_run_repository.get_by_id(run_id)
+
+        if task_run is None:
+            raise ValueError(f"TaskRun {run_id} not found")
+
+        task_run.complete()
+
+        return self.task_run_repository.update(task_run)
+
     def complete_task_run(self, run_id: UUID) -> TaskRun:
         task_run = self.task_run_repository.get_by_id(run_id)
 
