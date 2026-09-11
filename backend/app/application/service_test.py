@@ -2,13 +2,14 @@ from backend.app.application.task_service import TaskService
 from backend.app.infrastructure.database import SessionLocal
 from backend.app.infrastructure.repositories.task_repository import TaskRepository
 from backend.app.infrastructure.repositories.task_run_repository import TaskRunRepository
-
+from backend.app.infrastructure.queue.in_memory_task_queue import InMemoryTaskQueue
 
 with SessionLocal() as session:
     repository = TaskRepository(session)
     task_run_repository = TaskRunRepository(session)
+    task_queue = InMemoryTaskQueue()
 
-    service = TaskService(repository, task_run_repository)
+    service = TaskService(repository, task_run_repository, task_queue)
 
     task = service.create_task("Test task service")
 
@@ -29,6 +30,11 @@ with SessionLocal() as session:
     print("TaskRun task:", task_run.task_id)
     print("TaskRun attempt:", task_run.attempt)
     print("TaskRun status:", task_run.status) 
+
+    job = task_queue.dequeue()
+
+    print("Queued job:", job)
+
     completed_run = service.complete_task_run(task_run.id)
 
     print("Completed status:", completed_run.status)

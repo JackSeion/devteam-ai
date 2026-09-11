@@ -4,7 +4,8 @@ from backend.app.domain.task import Task
 from backend.app.domain.task_run import TaskRun
 from backend.app.infrastructure.repositories.task_repository import TaskRepository
 from backend.app.infrastructure.repositories.task_run_repository import TaskRunRepository
-
+from backend.app.application.queue.task_queue import TaskQueue
+from backend.app.domain.task_job import TaskJob
 
 class TaskService:
 
@@ -12,9 +13,11 @@ class TaskService:
         self,
         repository: TaskRepository,
         task_run_repository: TaskRunRepository,
+        task_queue: TaskQueue,
     ):
         self.repository = repository
         self.task_run_repository = task_run_repository
+        self.task_queue = task_queue 
 
     def create_task(self, description: str) -> Task:
         task = Task(description)
@@ -44,7 +47,13 @@ class TaskService:
         )
         task_run.start()
         
-        return self.task_run_repository.create(task_run)
+        task_run= self.task_run_repository.create(task_run)
+        job = TaskJob(
+            task_id=task_id,
+            task_run_id=task_run.id
+        )
+        self.task_queue.enqueue(job)
+        return task_run
 
     def complete_task_run(self, run_id: UUID) -> TaskRun:
         task_run = self.task_run_repository.get_by_id(run_id)
